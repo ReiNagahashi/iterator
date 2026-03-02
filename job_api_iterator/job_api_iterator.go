@@ -2,16 +2,9 @@ package jobapiiterator
 
 import (
 	"fmt"
+	"iter"
 	"strconv"
 )
-
-// 具象iterator。求人データをiteratorとして処理する
-type JobAPIIterator struct{
-	CurrentPage int
-	Buffer []Job //APIから取得した1ページ分のデータを一時保存
-	Index int //現在のバッファ内のどこをみているか
-	IsDone bool //全データ取り切ったかどうか
-}
 
 type Job struct{
 	ID int
@@ -30,26 +23,28 @@ func FetchJobsFromAPI(page int)[]Job{
 	}
 }
 
-// バッファが空または全て読み切った場合、次のページを裏側でフェッチする
-func (it *JobAPIIterator) HasNext() bool{
-	// バッファが空、または全て読み切った場合、次のページを裏側でフェッチする
-	if it.Index >= len(it.Buffer) && !it.IsDone{
-		it.CurrentPage++
-		it.Buffer = FetchJobsFromAPI(it.CurrentPage)
-		it.Index = 0
 
-		if len(it.Buffer) == 0{
-			it.IsDone = true
+func FetchAllJobs() iter.Seq[Job] {
+	// 戻り値は関数→どんな関数？：yieldという関数を受け取る
+	return func(yield func(Job) bool){
+		page := 1 //状態は単なるローカル変数
+
+		for {
+			// APIから1ページ分を取得
+			jobs := FetchJobsFromAPI(page)
+			if len(jobs) == 0{
+				return
+			}
+			// 取得したデータを1件ずつ、使う側(for range)に「yield(渡す)」する
+			for _, job := range jobs{
+				// yield(job)を呼ぶと、main側のforループの中身が実行される
+				// もしmain側でbreakされたら、yieldはfalseを返す。これによって、クライアンが処理をやめた瞬間にクリーンアップを実行することが自然にかける
+				if !yield(job){
+					fmt.Println(" [System] クライアントがループを中断しました。通信を遮断します.")
+					return //即座に終了してリソースを解放
+				}
+			}
+			page++
 		}
 	}
-
-	return !it.IsDone
-}
-
-// バッファから1件取り出してインデックスを１つ進める
-func (it *JobAPIIterator) Next() Job{
-	// バッファから1件取り出して、インデックスを進める
-	job := it.Buffer[it.Index]
-	it.Index++
-	return job
 }
