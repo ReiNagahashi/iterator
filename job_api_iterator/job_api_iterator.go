@@ -19,7 +19,7 @@ type Job struct{
 }
 
 // ダミーのAPI呼び出し関数。今回は１ページに２件返す設定
-func (it *JobAPIIterator) FetchJobsFromAPI(page int)[]Job{
+func FetchJobsFromAPI(page int)[]Job{
 	if page > 3{
 		return []Job{} // 3ページ目で終わり
 	}
@@ -35,7 +35,7 @@ func (it *JobAPIIterator) HasNext() bool{
 	// バッファが空、または全て読み切った場合、次のページを裏側でフェッチする
 	if it.Index >= len(it.Buffer) && !it.IsDone{
 		it.CurrentPage++
-		it.Buffer = it.FetchJobsFromAPI(it.CurrentPage)
+		it.Buffer = FetchJobsFromAPI(it.CurrentPage)
 		it.Index = 0
 
 		if len(it.Buffer) == 0{
